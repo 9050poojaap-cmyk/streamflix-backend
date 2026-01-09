@@ -5,14 +5,16 @@ const cors = require("cors");
 const app = express();
 
 // Middleware
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-  })
-);
-app.options("*", cors());
+// Middleware
+app.use(cors({
+  origin: true,              // ✅ allow all origins safely
+  credentials: true,
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+
+app.options("/*", cors());   // ✅ VALID wildcard
+
 
 
 app.use(express.json());
