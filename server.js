@@ -4,87 +4,81 @@ const cors = require("cors");
 
 const app = express();
 
-// Middleware
-// Middleware
-app.use(cors({
-  origin: true,              // ✅ allow all origins safely
-  credentials: true,
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+/* =======================
+   MIDDLEWARE
+======================= */
 
-app.options("/*", cors());   // ✅ VALID wildcard
+// ✅ CORS (mobile + web safe)
+app.use(
+  cors({
+    origin: true,          // allow all origins
+    credentials: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-
+// ✅ IMPORTANT: wildcard must be "*" NOT "/*"
+app.options("*", cors());
 
 app.use(express.json());
 
-// Movie Schema
+/* =======================
+   SCHEMAS & MODELS
+======================= */
+
 const movieSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  poster: { type: String, required: true },
-  trailer: { type: String, required: true },
+  title: String,
+  poster: String,
+  trailer: String,
 });
 
-// Movie Model
 const Movie = mongoose.model("Movie", movieSchema);
 
-// USER SCHEMA
 const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  email: { type: String, unique: true },
+  password: String,
   watchlist: [{ type: mongoose.Schema.Types.ObjectId, ref: "Movie" }],
 });
 
 const User = mongoose.model("User", userSchema);
 
+/* =======================
+   ROUTES
+======================= */
 
-// Root route
+// Root
 app.get("/", (req, res) => {
   res.send("StreamFlix backend is running");
 });
 
-// ✅ GET all movies (Home page)
+// Movies
 app.get("/movies", async (req, res) => {
   try {
     const movies = await Movie.find();
     res.json(movies);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ✅ GET movie by ID (Trailer page)
 app.get("/movies/:id", async (req, res) => {
   try {
     const movie = await Movie.findById(req.params.id);
-    if (!movie) {
-      return res.status(404).json({ message: "Movie not found" });
-    }
+    if (!movie) return res.status(404).json({ message: "Movie not found" });
     res.json(movie);
-  } catch (error) {
+  } catch {
     res.status(400).json({ message: "Invalid movie ID" });
   }
 });
 
-// ✅ ADD a new movie
-app.post("/movies", async (req, res) => {
-  try {
-    const movie = new Movie(req.body);
-    await movie.save();
-    res.status(201).json(movie);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// REGISTER
+// Register
 app.post("/register", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    const exists = await User.findOne({ email });
+    if (exists) {
       return res.status(400).json({ message: "User already exists" });
     }
 
@@ -92,12 +86,12 @@ app.post("/register", async (req, res) => {
     await user.save();
 
     res.status(201).json({ message: "User registered successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// LOGIN
+// Login
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -111,12 +105,12 @@ app.post("/login", async (req, res) => {
       message: "Login successful",
       userId: user._id,
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// ADD / REMOVE WATCHLIST
+// Watchlist toggle
 app.post("/watchlist/:movieId", async (req, res) => {
   try {
     const { userId } = req.body;
@@ -126,47 +120,44 @@ app.post("/watchlist/:movieId", async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const index = user.watchlist.indexOf(movieId);
-
-    if (index === -1) {
-      user.watchlist.push(movieId); // add
-    } else {
-      user.watchlist.splice(index, 1); // remove
-    }
+    index === -1
+      ? user.watchlist.push(movieId)
+      : user.watchlist.splice(index, 1);
 
     await user.save();
     res.json(user.watchlist);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// GET WATCHLIST
 app.get("/watchlist/:userId", async (req, res) => {
   try {
     const user = await User.findById(req.params.userId).populate("watchlist");
     if (!user) return res.status(404).json({ message: "User not found" });
-
     res.json(user.watchlist);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
+/* =======================
+   DATABASE
+======================= */
 
-// MongoDB connection
- mongoose
+mongoose
   .connect(
     "mongodb+srv://9050poojaap_db_user:I1AY0c8A0Y57ETTv@streamflix-cluster.jzf2g4g.mongodb.net/streamflixDB?retryWrites=true&w=majority"
   )
-  .then(() => console.log("MongoDB Atlas connected to streamflixDB"))
-  .catch((err) => console.log(err));
+  .then(() => console.log("MongoDB Atlas connected"))
+  .catch((err) => console.error(err));
 
-  
+/* =======================
+   SERVER
+======================= */
 
-// Start server
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
